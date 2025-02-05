@@ -32,27 +32,11 @@ while read host; do
 done < live.txt
 echo "[+] Enumeration results saved to enumerated.txt"
 
-# Step 4: Take screenshots of websites running on port 80 or 443
+# Step 4: Take screenshots of websites running on port 80 or 443 
 echo "[*] Taking screenshots of websites..."
 echo "<html><body>" > web.html
 
 while read host; do
-    for port in 80 443; do
-        if grep -q "$host:$port" ports.txt; then
-            screenshot_file="screenshots/${host}_port${port}.png"
-            url="http://$host"
-            [[ $port -eq 443 ]] && url="https://$host"
-            
-            wkhtmltoimage --quiet $url $screenshot_file
-            
-            if [[ -f $screenshot_file ]]; then
-                echo "<h3>$host:$port</h3><img src=\"$screenshot_file\" style=\"width:600px;\"><br>" >> web.html
-            fi
-        fi
-    done
-done < live.txt
-## DEON SCREENSHOT
-for host in $hosts; do
     # Check if port 80 (HTTP) is open
     if nc -z -w 1 "$host" 80 2>/dev/null; then
         echo "[*] $host: Port 80 is open. Capturing screenshot for http://$host..."
@@ -72,8 +56,8 @@ EOF
     <img src="screenshots/${host}-443.png" alt="Screenshot of https://$host">
 EOF
     fi
-done
-# END OF DEON SCREENSHOT 
+done < live.txt
+
 echo "</body></html>" >> web.html
 
 echo "[+] Screenshots saved to screenshots/ directory and web.html created."
