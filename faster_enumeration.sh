@@ -28,7 +28,7 @@ echo "[+] Open ports saved to ports.txt"
 # Step 3: Identify OS and services running on each port
 echo "[*] Enumerating OS and services on live hosts..."
 while read host; do
-    nmap -sS -sV -O $host >> enumerated.txt
+    nmap -T3 -sS -sV -O $host >> enumerated.txt
 done < live.txt
 echo "[+] Enumeration results saved to enumerated.txt"
 
