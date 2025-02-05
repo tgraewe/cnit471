@@ -1,68 +1,69 @@
 #!/bin/bash
 
-# Function to validate IP address format
-validate_ip() {
-    local ip=$1
-    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
+# Ensure the script is run with root privileges
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 
+   exit 1
+fi
 
-# Function to get target input
-get_targets() {
-    echo "Enter target(s) to scan:"
-    read targets
+# Prompt user for target input
+echo "Enter your target subnet or IP range (e.g., 192.168.0.0/24, 192.168.0.1-10, or 192.168.0.1,192.168.0.4):"
+read targets
 
-    if [[ $targets == *"/"* ]]; then
-        echo $targets
-    elif [[ $targets == *"-"* ]]; then
-        IFS='-' read -ra ADDR <<< "$targets"
-        echo "${ADDR[0]%.*}.${ADDR[0]##*.}-${ADDR[1]}"
-    elif [[ $targets == *","* ]]; then
-        IFS=',' read -ra ADDR <<< "$targets"
-        for i in "${ADDR[@]}"; do
-            if validate_ip $i; then
-                echo $i
-            else
-                echo "Invalid IP: $i"
-                exit 1
-            fi
-        done
-    else
-        echo "Invalid input format"
-        exit 1
-    fi
-}
-
-# Get targets
-targets=$(get_targets)
-
-# Scan 1: Check for live hosts
-nmap -sn $targets -oG - | awk '/Up$/{print $2}' > live.txt
-
-# Scan 2: Check for open ports on live hosts
-while read ip; do
-    nmap -p- $ip | awk '/^[0-9]/{print "'$ip' "$1" "$3}' >> ports.txt
-done < live.txt
-
-# Scan 3: Identify OS, services, and versions
-while read ip; do
-    nmap -O -sV $ip >> enumerated.txt
-done < live.txt
-
-# Scan 4: Take screenshots of web services
+# Create output directories
 mkdir -p screenshots
-echo "<html><body>" > web.html
-while read ip; do
-    if nmap -p 80,443 $ip | grep -q "open"; then
-        cutycapt --url=http://$ip --out=screenshots/$ip.png
-        echo "<img src='screenshots/$ip.png'><br>" >> web.html
-        cutycapt --url=https://$ip --out=screenshots/$ip_https.png
-        echo "<img src='screenshots/$ip_https.png'><br>" >> web.html
-    fi
+
+# Step 1: Scan for live hosts
+echo "[*] Scanning for live hosts..."
+nmap -sn $targets -oG - | awk '/Up$/{print $2}' > live.txt
+echo "[+] Live hosts saved to live.txt"
+
+# Step 2: Scan for open ports on live hosts
+echo "[*] Scanning for open ports on live hosts..."
+while read host; do
+    nmap -p- --open $host | awk '/open/{print "'$host': " $1}' >> ports.txt
 done < live.txt
+echo "[+] Open ports saved to ports.txt"
+
+# Step 3: Identify OS and services running on each port
+echo "[*] Enumerating OS and services on live hosts..."
+while read host; do
+    nmap -sS -sV -O $host >> enumerated.txt
+done < live.txt
+echo "[+] Enumeration results saved to enumerated.txt"
+
+# Step 4: Take screenshots of websites running on port 80 or 443
+echo "[*] Taking screenshots of websites..."
+echo "<html><body>" > web.html
+
+while read host; do
+    for port in 80 443; do
+        if grep -q "$host:$port" ports.txt; then
+            screenshot_file="screenshots/${host}_port${port}.png"
+            url="http://$host"
+            [[ $port -eq 443 ]] && url="https://$host"
+            
+            wkhtmltoimage --quiet $url $screenshot_file
+            
+            if [[ -f $screenshot_file ]]; then
+                echo "<h3>$host:$port</h3><img src=\"$screenshot_file\" style=\"width:600px;\"><br>" >> web.html
+            fi
+        fi
+    done
+done < live.txt
+
 echo "</body></html>" >> web.html
 
-echo "Scanning complete. Check live.txt, ports.txt, enumerated.txt, and web.html for results."
+echo "[+] Screenshots saved to screenshots/ directory and web.html created."
+
+# Start Apache server (optional)
+echo "[*] Starting Apache server..."
+systemctl start apache2 && echo "[+] Apache started."
+
+# Final message and cleanup instructions
+echo "Script execution completed."
+echo "Check the following files:"
+echo "- live.txt: List of live hosts"
+echo "- ports.txt: List of open ports on live hosts"
+echo "- enumerated.txt: OS and service enumeration results"
+echo "- web.html: HTML file with screenshots of websites"
