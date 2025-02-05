@@ -15,7 +15,7 @@ nmap -sn -n $targets | awk '/Up$/{print $2}' > live.txt
 # Scan 2: Port Scanning
 echo "Scanning open ports..."
 while read ip; do
-    nmap -T4 -p- $ip | awk -v ip="$ip" '/open/{print ip":"$1}' >> ports.txt
+    nmap -T2 -p- $ip | awk -v ip="$ip" '/open/{print ip":"$1}' >> ports.txt
 done < live.txt
 
 # Scan 3: Service/OS Detection
