@@ -62,10 +62,6 @@ echo "</body></html>" >> web.html
 
 echo "[+] Screenshots saved to screenshots/ directory and web.html created."
 
-# Start Apache server (optional)
-echo "[*] Starting Apache server..."
-systemctl start apache2 && echo "[+] Apache started."
-
 # Final message and cleanup instructions
 echo "Script execution completed."
 echo "Check the following files:"
