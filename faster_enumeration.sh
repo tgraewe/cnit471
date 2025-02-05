@@ -34,8 +34,6 @@ echo "[+] Enumeration results saved to enumerated.txt"
 
 # Step 4: Take screenshots of websites running on port 80 or 443 
 echo "[*] Checking for web servers on ports 80 or 443 and capturing screenshots..."
-# Create screenshots directory if it doesn't exist
-mkdir -p screenshots
 
 # Start building the HTML file
 cat <<EOF > web.html
@@ -48,7 +46,8 @@ cat <<EOF > web.html
     <h1>Website Screenshots</h1>
 EOF
 
-for host in $hosts; do
+# Iterate over each host in live.txt
+while read host; do
     # Check if port 80 (HTTP) is open
     if nc -z -w 1 "$host" 80 2>/dev/null; then
         echo "[*] $host: Port 80 is open. Capturing screenshot for http://$host..."
@@ -68,8 +67,7 @@ EOF
     <img src="screenshots/${host}-443.png" alt="Screenshot of https://$host">
 EOF
     fi
-done
-
+done < live.txt
 
 # Finish the HTML file
 cat <<EOF >> web.html
